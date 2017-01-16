@@ -80,7 +80,7 @@
                         _this.terminal.disable();
                         _this.terminal.find('.cursor').hide();
                     });
-                }, 1000);
+                }, 300);
             });
         }
     };

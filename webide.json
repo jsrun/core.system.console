@@ -1,5 +1,8 @@
 {
     "name": "wi.core.terminal",
     "version": "0.0.1",
-    "author": "André Ferreira <andrehrf@gmail.com>"
+    "author": "André Ferreira <andrehrf@gmail.com>",
+    "dependencies": {
+        "jcubic/jquery.terminal": "0.11.23"
+    }
 }

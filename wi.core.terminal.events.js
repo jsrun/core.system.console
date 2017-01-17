@@ -20,6 +20,10 @@
             webide.tabs.itens[state.id].cb(state.id);
     });
     
+    webide.commands.add("webide:newterminal", function(){
+        webide.terminal.create();
+    });
+    
     webide.terminal = {
         terminal: null,
         
@@ -32,6 +36,7 @@
                         webide.io.emit('stdin', command);
                         _this.terminal.disable();
                         _this.terminal.find('.cursor').hide();
+                        _this.terminal.find('.prompt').hide();
                     }, {
                         greetings: 'Welcome to WebIDE terminal',
                         prompt: 'webide@' + username + '>',
@@ -45,6 +50,7 @@
                         console.log('connected');
                         _this.terminal.enable();
                         _this.terminal.find('.cursor').show();
+                        _this.terminal.find('.prompt').show();
                     });
 
                     webide.io.on('disconnect', function (data) {
@@ -52,6 +58,7 @@
                         _this.terminal.disable();
                         _this.terminal.error("connection lost");
                         _this.terminal.find('.cursor').hide();
+                        _this.terminal.find('.prompt').hide();
                     });
 
                     webide.io.on('reconnect', function (data) {
@@ -59,26 +66,32 @@
                         _this.terminal.enable();
                         _this.terminal.echo("connected");
                         _this.terminal.find('.cursor').show();
+                        _this.terminal.find('.prompt').show();
                     });
 
                     webide.io.on('stdout', function (data) {
                         _this.terminal.echo(data);
+                        _this.terminal.find('.cursor').hide();
+                        _this.terminal.find('.prompt').hide();
                     });
 
                     webide.io.on('stderr', function (data) {
                         _this.terminal.error(data);
                         _this.terminal.enable();
                         _this.terminal.find('.cursor').show();
+                        _this.terminal.find('.prompt').show();
                     });
 
                     webide.io.on('enable', function() {
                         _this.terminal.enable();
                         _this.terminal.find('.cursor').show();
+                        _this.terminal.find('.prompt').show();
                     });
 
                     webide.io.on('disable', function() {
                         _this.terminal.disable();
                         _this.terminal.find('.cursor').hide();
+                        _this.terminal.find('.prompt').hide();
                     });
                 }, 300);
             });

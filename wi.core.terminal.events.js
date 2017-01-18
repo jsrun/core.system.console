@@ -13,20 +13,35 @@
 "use strict";
 
 (function(){
+    //Register tab type
     webide.tabs.layout.registerComponent('terminal', function(container, state){
+        container.id = state.id;
         container.getElement().html("<div id='wi-terminal-" + state.id + "' class='wi-terminal'></div>");
+        webide.tabs.itens[state.id].container = container;
         
         if(typeof webide.tabs.itens[state.id].cb == "function")
             webide.tabs.itens[state.id].cb(state.id);
     });
     
+    //Map command to create terminal
     webide.commands.add("webide:newterminal", function(){
         webide.terminal.create();
     });
     
     webide.terminal = {
+        /**
+         * jQuery Terminal object
+         * @type object
+         */
         terminal: null,
         
+        /**
+         * Function to create terminal
+         * 
+         * @param string username
+         * @param function cb
+         * @return void
+         */
         create: function(username, cb){
             var _this = this;
             
@@ -97,6 +112,4 @@
             });
         }
     };
-    
-    //webide.terminal.create();
 })();

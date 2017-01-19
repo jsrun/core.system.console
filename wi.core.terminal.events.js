@@ -36,6 +36,11 @@
         terminal: null,
         
         /**
+         * 
+         */
+        cwd: null,
+        
+        /**
          * Function to create terminal
          * 
          * @param string username
@@ -45,16 +50,21 @@
         create: function(username, cb){
             var _this = this;
             
-            webide.tabs.add("Terminal", "terminal", "terminal", null, function(id){
+            if(!username)
+                username = "user";
+            
+            _this.user = username;
+            
+            webide.tabs.add("Terminal", "terminal", "terminal", {height: 150}, function(id){
                 setTimeout(function(){
                     _this.terminal = $("#wi-terminal-" + id).terminal(function(command, term) {
-                        webide.io.emit('stdin', command);
+                        webide.io.emit('stdin', {cmd: command, cwd: _this.cwd});
                         _this.terminal.disable();
                         _this.terminal.find('.cursor').hide();
                         _this.terminal.find('.prompt').hide();
                     }, {
                         greetings: 'Welcome to WebIDE terminal',
-                        prompt: 'webide@' + username + '>',
+                        prompt: 'webide@' + username + '#',
                         exit: false
                     });
                     
@@ -89,10 +99,16 @@
                         _this.terminal.find('.cursor').hide();
                         _this.terminal.find('.prompt').hide();
                     });
+                    
+                    webide.io.on('cwd', function (data) {
+                        _this.cwd = data
+                        _this.terminal.set_prompt('webide@' + _this.user + ':'+ _this.cwd +'#');
+                        _this.terminal.find('.cursor').show();
+                        _this.terminal.find('.prompt').show();
+                    });
 
                     webide.io.on('stderr', function (data) {
-                        _this.terminal.error(data);
-                        _this.terminal.enable();
+                        _this.terminal.error(data);                        
                         _this.terminal.find('.cursor').show();
                         _this.terminal.find('.prompt').show();
                     });

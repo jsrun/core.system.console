@@ -15,18 +15,59 @@
 let fs = require("fs"),
     path = require("path"),
     glob = require("glob"),
-    exec = require('child_process').exec,
+    os = require('os'),
+    spawn = require('child_process').spawn,
+    pty = require('node-pty'),
     SystemException = require("../wi.core.exception.js"),
     TemplateEngine = require("../wi.core.template.js");
 
 module.exports = {    
     /**
+     * List of terminals 
+     * @type object
+     */
+    terminals: {},
+    
+    /**
+     * Logs 
+     * @type object
+     */
+    logs: {},
+    
+    /**
      * List module assets
      * @type object
      */
     assets: {
-        css: [__dirname + "/node_modules/jquery.terminal/css/jquery.terminal.min.css"],
-        js: [__dirname + "/node_modules/jquery.terminal/js/jquery.mousewheel-min.js", __dirname + "/node_modules/jquery.terminal/js/jquery.terminal.min.js", __dirname + "/node_modules/jquery.terminal/js/unix_formatting.js"]
+        css: [__dirname + "/node_modules/xterm/dist/xterm.css", __dirname + "/node_modules/xterm/dist/addons/fullscreen/fullscreen.css"],
+        js: [__dirname + "/node_modules/xterm/dist/xterm.js", __dirname + "/node_modules/xterm/dist/addons/attach/attach.js", __dirname + "/node_modules/xterm/dist/addons/fit/fit.js", __dirname + "/node_modules/xterm/dist/addons/fullscreen/fullscreen.js"]
+    },
+    
+    /**
+     * Function to create terminal
+     * 
+     * @param string cwd
+     * @return object
+     */
+    create: function(cwd, cols, rows){
+        let _this = this;
+                       
+        let term = pty.spawn(process.platform === 'win32' ? 'cmd.exe' : 'bash', [], {
+            name: 'xterm-color',
+            cols: cols,
+            rows: rows,
+            cwd: cwd
+        });
+        
+        this.logs[term.pid] = "";
+        term.on('data', (data) => { _this.logs[term.pid] += data.toString(); });
+                
+        this.terminals[term.pid] = term;
+        return term;
+    },
+    
+    get: function(id){
+        return this.terminals[id];
     },
     
      /**
@@ -35,7 +76,9 @@ module.exports = {
      * @param object app
      * @return this
      */
-    bootstrap: function(_this){ 
+    bootstrap: function(_this){
+        let __this = this;
+        
         _this.commands.addCommand({
             name: "webide:newterminal",
             bind: {mac: "Command-T", win: "Alt-T"},
@@ -45,125 +88,35 @@ module.exports = {
             command: "webide:newterminal"
         }, 100);
         
+        _this.app.post("/terminal/create", (req, res) => {
+            let _id = (req.user) ? req.user._id : 0;
+            let workspaceDirname = fs.realpathSync(__dirname + "/../../.workspaces/" + _id);
+            res.send(__this.create(workspaceDirname, parseInt(req.body.cols), parseInt(req.body.rows)).pid.toString());            
+        });
+        
         _this._.setSocketsEvents(function(socket){
-            if(!socket.hasEvent("stdin")){ 
-                socket.on('stdin', function (data) {
-                    if(typeof data.cmd == "string"){
-                        switch(data.cmd.split(" ")[0]){
-                            case "cd":
-                                try{
-                                    var _id = (socket.user) ? socket.user._id : 0;
-                                    var workspaceDirname = fs.realpathSync(__dirname + "/../../.workspaces/" + _id);
-
-                                    var workspaceDirnameWithCwd = (data.cwd !== "~") ? workspaceDirname + data.cwd : data.cwd.replace("~", workspaceDirname);
-
-                                    if(typeof data.cmd.split(" ")[1] == "string"){
-                                        var dir = data.cmd.split(" ")[1];
-
-                                        switch(dir.substr(0,1)){
-                                            case "/":                                             
-                                                if(fs.statSync(workspaceDirnameWithCwd + dir))
-                                                    socket.emit("cwd", {_id: data._id, cwd: dir}); 
-                                                else
-                                                    socket.emit("stderr", {_id: data._id, out: "cd: " + dir + ": " + _this.i18n.__("No such file or directory")});
-
-                                                socket.emit("enable", {_id: data._id});
-                                            break;
-                                            case "~":                                             
-                                                if(fs.statSync(dir.replace("~", workspaceDirnameWithCwd)))
-                                                    socket.emit("cwd", {_id: data._id, cwd: dir}); 
-                                                else
-                                                    socket.emit("stderr", {_id: data._id, out: "cd: " + dir + ": " + _this.i18n.__("No such file or directory")}); 
-
-                                                socket.emit("enable", {_id: data._id});
-                                            break;
-                                            default:                                             
-                                                if(fs.statSync(workspaceDirnameWithCwd + "/" + dir))
-                                                    socket.emit("cwd", {_id: data._id, cwd: fs.realpathSync(workspaceDirnameWithCwd + "/" + dir).replace(workspaceDirname, "")}); 
-                                                else
-                                                    socket.emit("stderr", {_id: data._id, out: "cd: " + dir + ": " + _this.i18n.__("No such file or directory")});
-
-                                                socket.emit("enable", {_id: data._id});
-                                            break;
-                                        }
-
-                                    }
-                                    else{
-                                        socket.emit("enable", {_id: data._id});
-                                    }
-                                }
-                                catch(e){
-                                    socket.emit("stderr", {_id: data._id, out: "cd: " + dir + ": " + _this.i18n.__("No such file or directory")});
-                                    socket.emit("enable", {_id: data._id});
-                                }
-                            break;
-                            case "ls":
-                                var _id = (socket.user) ? socket.user._id : 0;
-                                var workspaceDirname = fs.realpathSync(__dirname + "/../../.workspaces/" + _id);
-
-                                if(data.cwd !== "~")
-                                    workspaceDirname += data.cwd;
-
-                                glob(workspaceDirname + "/*", {stat: false, cache: true, dot: true}, function (er, files) {
-                                    var out = "";
-
-                                    for(let key in files)
-                                        out += path.basename(files[key])+"\t";
-
-                                    socket.emit("stdout", {_id: data._id, out: out}); 
-                                    socket.emit("enable", {_id: data._id});
-                                });
-                            break;
-                            default: 
-                                var _id = (socket.user) ? socket.user._id : 0;
-                                var workspaceDirname = fs.realpathSync(__dirname + "/../../.workspaces/" + _id);
-
-                                if(data.cwd !== "~")
-                                    workspaceDirname += data.cwd;
-                                                                
-                                var execDockerCompose = exec(data.cmd, { cwd: workspaceDirname });
-                                execDockerCompose.stdout.on('data', (out) => { socket.emit("stdout", {out: out.toString(), _id: data._id}); });
-                                execDockerCompose.stderr.on('data', (out) => { socket.emit("stderr", {out: out.toString(), _id: data._id}); });
-                                execDockerCompose.on('exit', () => { 
-                                    socket.emit("enable", {_id: data._id}); 
-                                    
-                                    if(typeof data.onexit == "string")
-                                        socket.emit(data.onexit, {_id: data._id}); 
-                                });
-                            break;
-                        }
-                    }
+            /**
+             * @see https://github.com/sourcelair/xterm.js/blob/master/demo/app.js
+             */
+            if(!socket.hasEvent("terminal:stdin")){ 
+                var cmd = "";
+                
+                socket.on('terminal:stdin', function(id, termID, data) {                    
+                    __this.get(termID).write(data);
                 });
-            }
-            
-            if(!socket.hasEvent("ls")){
-                socket.on('ls', function(data){
-                    var _id = (socket.user) ? socket.user._id : 0;
-                    var workspaceDirname = fs.realpathSync(__dirname + "/../../.workspaces/" + _id);
-
-                    if(data.cwd == "/")
-                        var workspaceDirnameWithCwd = workspaceDirname;
-                    else
-                        var workspaceDirnameWithCwd = (data.cwd !== "~") ? workspaceDirname + data.cwd : data.cwd.replace("~", workspaceDirname);
-
-                    var cmds = data.cmd.split(" ");
-
-                    glob(workspaceDirnameWithCwd + "/" + cmds[cmds.length-1] + "*", {cache: true, dot: true}, function (er, files) {
-                        if(files.length > 1){
-                            var out = "";
-
-                            for(let key in files)
-                                out += path.basename(files[key])+"\t";
-
-                            socket.emit("stdout", {_id: data._id, out: out}); 
-                            socket.emit("enable", {_id: data._id});
-                        }
-                        else if(files.length == 1){
-                            socket.emit("ls", {_id: data._id, cmd: data.cmd.replace(cmds[cmds.length-1], files[0].replace(/\\/img, "/").replace((workspaceDirnameWithCwd + "/").replace(/\\/img, "/"), ""))}); 
-                        }
+                
+                socket.on('terminal:resize', function(termID, cols, rows) {                    
+                    __this.get(termID).resize(cols, rows);
+                });
+                
+                socket.on('terminal:logs', function(id, termID) {
+                    socket.emit("terminal:stdout", id, __this.logs[termID]);
+                    
+                    __this.get(termID).on('data', (data) => {                         
+                        socket.emit("terminal:stdout", id, data);
                     });
                 });
-            }
+            }   
         });
     }
 };

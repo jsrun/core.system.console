@@ -27,80 +27,7 @@ webide.module("terminal", function(tabs, commands){
     commands.add("webide:newterminal", function(){
         webide.terminal.create();
     });
-    
-    this.io.on('connect', function (data) {        
-        webide.terminal.all(function(terminal){
-            terminal.enable();
-            terminal.find('.cursor').show();
-            terminal.find('.prompt').show();
-        });
-    });
-
-    this.io.on('disconnect', function (data) {        
-        webide.terminal.all(function(terminal){
-            terminal.disable();
-            terminal.error("connection lost");
-            terminal.find('.cursor').hide();
-            terminal.find('.prompt').hide();
-        });
-    });
-
-    this.io.on('reconnect', function (data) {        
-        webide.terminal.all(function(terminal){
-            terminal.enable();
-            terminal.echo("connected");
-            terminal.find('.cursor').show();
-            terminal.find('.prompt').show();
-        });        
-    });
-
-    this.io.on('stdout', function (data) {
-        webide.terminal.get(data._id, function(terminal){
-            terminal.echo(data.out);
-            terminal.find('.cursor').hide();
-            terminal.find('.prompt').hide();
-        });
-    });
-    
-    this.io.on('stderr', function (data) {
-        webide.terminal.get(data._id, function(terminal){
-            terminal.error(data.out); 
-            terminal.find('.cursor').hide();
-            terminal.find('.prompt').hide();
-        });
-    });
-
-    this.io.on('cwd', function (data) {
-        webide.terminal.get(data._id, function(terminal){
-            terminal.cwd = data.cwd;
-            terminal.set_prompt('webide@' + terminal.user + ':'+ terminal.cwd +'# ');
-            terminal.find('.cursor').show();
-            terminal.find('.prompt').show();
-        });
-    });
-
-    this.io.on('enable', function(data) {
-        webide.terminal.get(data._id, function(terminal){
-            terminal.enable();
-            terminal.find('.cursor').show();
-            terminal.find('.prompt').show();
-        });
-    });
-
-    this.io.on('disable', function(data) {
-        webide.terminal.get(data._id, function(terminal){
-            terminal.disable();
-            terminal.find('.cursor').hide();
-            terminal.find('.prompt').hide();
-        });
-    });
-    
-    this.io.on('ls', function(data) {
-        webide.terminal.get(data._id, function(terminal){
-            terminal.set_command(data.cmd);
-        });
-    });
-    
+        
     this.terminal = {
         /**
          * jQuery Terminal object
@@ -139,42 +66,44 @@ webide.module("terminal", function(tabs, commands){
          * @param function cb
          * @return void
          */
-        create: function(username, cb){
+        create: function(cb){
             var _this = this;
             var _id = new Date().getTime();
-            
-            if(!username)
-                username = "user";
-            
+                        
             webide.tabs.add("Terminal", _id.toString(), "terminal", {height: 150}, function(id){
                 setTimeout(function(id){
-                    _this.terminals[id] = $("#wi-terminal-" + id).terminal(function(command, term) {
-                        webide.io.emit('stdin', {cmd: command, cwd: _this.terminals[id].cwd, _id: id, socket: webide.io.id});
-                        _this.terminals[id].disable();
-                        _this.terminals[id].find('.cursor').hide();
-                        _this.terminals[id].find('.prompt').hide();
-                    }, {
-                        greetings: 'Welcome to WebIDE terminal',
-                        prompt: 'webide@' + username + ':~# ',
-                        exit: false,
-                        keydown: function(e) {
-                            if (e.ctrlKey && e.which == 67) {
-                                console.log("Ctrl+C");
-                                return false;
-                            }
-                            else if(e.which == 9){
-                                _this.terminals[id].echo(_this.terminals[id].get_prompt() + "" + _this.terminals[id].get_command());
-                                webide.io.emit('ls', {cmd: _this.terminals[id].get_command(), cwd: _this.terminals[id].cwd, _id: id, socket: webide.io.id});
-                                return false;
-                            }
-                        }
-                    });
+                    /**
+                     * @see http://udvarigabor.hu/replacing-ttyjs-frontend-to-xtermjs/
+                     */
+                    _this.terminals[id] = new Terminal({cursorBlink: true});                    
+                    _this.terminals[id].open(document.querySelector("#wi-terminal-" + id));
+                    _this.terminals[id].fit();
                     
-                    _this.terminals[id].user = username;
-                    _this.terminals[id].cwd = "~"
-                    
-                    if(typeof cb == "function")
-                        cb(_this.terminals[id], id);
+                    webide.send("/terminal/create", {cols: _this.terminals[id].cols, rows: _this.terminals[id].rows}, function(termID){
+                        _this.terminals[id].id = termID;
+
+                        _this.terminals[id].on('data', function(data) {
+                            webide.io.emit('terminal:stdin', id, termID, data);
+                        });
+
+                        _this.terminals[id].on('resize', function(data) {
+                            webide.io.emit('resize', termID, _this.terminals[id].cols, _this.terminals[id].rows);
+                        });
+
+                        webide.io.on('connect', function() {
+                            _this.terminals[id].writeln('Connected.');
+                            _this.terminals[id].writeln('');
+                        });
+
+                        webide.io.on('terminal:stdout', function(id, data) {
+                            _this.terminals[id].write(data);
+                        });
+                        
+                        setTimeout(function(){ webide.io.emit('terminal:logs', id, termID); }, 300);
+                        
+                        if(typeof cb == "function")
+                            cb(_this.terminals[id], id, termID);
+                    });                      
                 }, 300, id);
             });
         },
@@ -189,12 +118,10 @@ webide.module("terminal", function(tabs, commands){
         exec: function(cwd, cmd, onexit){
             var _this = this;
             
-            this.create("root", function(terminal, id){
-                _this.terminals[id].cwd = cwd;
-                _this.terminals[id].set_prompt('webide@' + _this.terminals[id].user + ':'+ _this.terminals[id].cwd +'# ');
-                
-                if(typeof cmd == "string")
-                    webide.io.emit('stdin', {cmd: cmd, cwd: cwd, _id: id, socket: webide.io.id, onexit: onexit});
+            this.create(function(terminal, id, termID){                
+                setTimeout(function(){
+                    webide.io.emit('terminal:stdin', id, termID, "cd ." + cwd+" && \n "+ cmd + " \n");
+                }, 300);
             });
         }
     };

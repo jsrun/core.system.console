@@ -13,8 +13,7 @@
 "use strict";
 
 webide.module("terminal", function(tabs, commands){
-    //Register tab type
-    tabs.layout.registerComponent('terminal', function(container, state){
+    tabs.layout.registerComponent('terminal', function(container, state){//Register tab type
         container.id = state.id;
         container.getElement().html("<div id='wi-terminal-" + state.id + "' class='wi-terminal'></div>");
         tabs.itens[state.id].container = container;
@@ -22,13 +21,10 @@ webide.module("terminal", function(tabs, commands){
         if(typeof tabs.itens[state.id].cb == "function")
             tabs.itens[state.id].cb(state.id);
     });
-    
-    //Map command to create terminal
-    commands.add("webide:newterminal", function(){
-        webide.terminal.create();
-    });
         
-    this.terminal = {
+    commands.add("webide:newterminal", function(){ webide.terminal.create(); });//Map command to create terminal
+        
+    this.extends("terminal", {
         /**
          * jQuery Terminal object
          * @type object
@@ -53,15 +49,37 @@ webide.module("terminal", function(tabs, commands){
          * @param function fn
          * @return void
          */
-        get: function(_id, fn){
-            if(this.terminals[_id])
+        get: function(id, fn){
+            if(this.terminals[id])
                 if(typeof fn == "function")
-                    fn(this.terminals[_id]);
+                    fn(this.terminals[id]);
+        },
+        
+        /**
+         * Function to return exists terminal by id
+         * 
+         * @param string id
+         * @return boolean
+         */
+        has: function(id){
+            return (typeof this.terminals[id] == "object");
+        },
+                
+        /**
+         * Function to remove terminal
+         * 
+         * @param string id
+         * @return boolean
+         */
+        remove: function(id){
+            if(this.has(id))
+                delete this.terminals[id];
         },
         
         /**
          * Function to create terminal
          * 
+         * @see http://udvarigabor.hu/replacing-ttyjs-frontend-to-xtermjs/
          * @param string username
          * @param function cb
          * @return void
@@ -70,11 +88,8 @@ webide.module("terminal", function(tabs, commands){
             var _this = this;
             var _id = new Date().getTime();
                         
-            webide.tabs.add("Terminal", _id.toString(), "terminal", {height: 150}, function(id){
+            tabs.add("Terminal", _id.toString(), "terminal", {height: 150}, function(id){
                 setTimeout(function(id){
-                    /**
-                     * @see http://udvarigabor.hu/replacing-ttyjs-frontend-to-xtermjs/
-                     */
                     _this.terminals[id] = new Terminal({cursorBlink: true});                    
                     _this.terminals[id].open(document.querySelector("#wi-terminal-" + id));
                     _this.terminals[id].fit();
@@ -83,7 +98,7 @@ webide.module("terminal", function(tabs, commands){
                         _this.terminals[id].id = termID;
 
                         _this.terminals[id].on('data', function(data) {
-                            webide.io.emit('terminal:stdin', id, termID, data);
+                            webide.io.emit('terminal:stdin', termID, data);
                         });
 
                         _this.terminals[id].on('resize', function(data) {
@@ -99,12 +114,22 @@ webide.module("terminal", function(tabs, commands){
                             _this.terminals[id].write(data);
                         });
                         
-                        setTimeout(function(){ webide.io.emit('terminal:logs', id, termID); }, 300);
+                        webide.io.on('terminal:close', function(id) {
+                            webide.terminal.remove(id);
+                            tabs.remove(id);
+                        });
+                        
+                        setTimeout(function(id, termID){ webide.io.emit('terminal:logs', id, termID); }, 300, id, termID);
                         
                         if(typeof cb == "function")
                             cb(_this.terminals[id], id, termID);
                     });                      
                 }, 300, id);
+            }, function(id){
+                if(_this.has(id))
+                    webide.io.emit("terminal:close", _this.get(id).id);
+                
+                return true;
             });
         },
         
@@ -113,6 +138,7 @@ webide.module("terminal", function(tabs, commands){
          * 
          * @param string cwd
          * @param string cmd
+         * @param function onexit
          * @return void
          */
         exec: function(cwd, cmd, onexit){
@@ -120,9 +146,14 @@ webide.module("terminal", function(tabs, commands){
             
             this.create(function(terminal, id, termID){                
                 setTimeout(function(){
-                    webide.io.emit('terminal:stdin', id, termID, "cd ." + cwd+" && \n "+ cmd + " \n");
+                    let cmdStr = "cd ." + cwd;
+                    
+                    if(cmd)
+                        cmdStr += "  && \n " + cmd + "\n";
+                    
+                    webide.io.emit('terminal:stdin', termID, cmdStr);
                 }, 300);
             });
         }
-    };
+    });
 });

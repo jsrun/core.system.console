@@ -16,7 +16,6 @@ let fs = require("fs"),
     path = require("path"),
     glob = require("glob"),
     os = require('os'),
-    spawn = require('child_process').spawn,
     pty = require('node-pty'),
     SystemException = require("../wi.core.exception.js"),
     TemplateEngine = require("../wi.core.template.js");
@@ -61,13 +60,66 @@ module.exports = {
         
         this.logs[term.pid] = "";
         term.on('data', (data) => { _this.logs[term.pid] += data.toString(); });
-                
         this.terminals[term.pid] = term;
+        
         return term;
     },
     
+    /**
+     * Function to return exists terminal by id
+     * 
+     * @param string id
+     * @return boolean
+     */
+    has: function(id){
+        return (typeof this.terminals[id] == "object");
+    },
+    
+    /**
+     * Function to get terminal
+     * 
+     * @param string id
+     * @return object|null
+     */
     get: function(id){
-        return this.terminals[id];
+        return (this.has(id)) ? this.terminals[id] : null;
+    },
+    
+    /**
+     * Function to write in terminal
+     * 
+     * @param string id
+     * @param string cmd
+     * @param function onend
+     * @return boolean
+     */
+    write: function(id, cmd, onend){
+        if(this.terminals[id]){
+            this.terminals[id].write(cmd + "\n");
+            this.terminals[id].on("exit", onend);
+            return true;
+        }
+        else{
+            return false;
+        }  
+    },
+    
+    /**
+     * Function to remove terminal
+     * 
+     * @param string id
+     * @return boolean
+     */
+    remove: function(id){
+        if(this.has(id)){
+            try{ process.kill(this.terminals[id].pid); } catch(e) {}            
+            delete this.terminals[id];
+            delete this.logs[id];
+            return true;
+        }
+        else{
+            return false;
+        }
     },
     
      /**
@@ -79,14 +131,8 @@ module.exports = {
     bootstrap: function(_this){
         let __this = this;
         
-        _this.commands.addCommand({
-            name: "webide:newterminal",
-            bind: {mac: "Command-T", win: "Alt-T"},
-        });
-    
-        _this.navbar.addItem("Window/New Terminal", {
-            command: "webide:newterminal"
-        }, 100);
+        _this.commands.addCommand({name: "webide:newterminal", bind: {mac: "Command-T", win: "Alt-T"}});
+        _this.navbar.addItem("Window/New Terminal", {command: "webide:newterminal"}, 100);
         
         _this.app.post("/terminal/create", (req, res) => {
             let _id = (req.user) ? req.user._id : 0;
@@ -98,23 +144,30 @@ module.exports = {
             /**
              * @see https://github.com/sourcelair/xterm.js/blob/master/demo/app.js
              */
-            if(!socket.hasEvent("terminal:stdin")){ 
-                var cmd = "";
-                
-                socket.on('terminal:stdin', function(id, termID, data) {                    
-                    __this.get(termID).write(data);
+            if(!socket.hasEvent("terminal:stdin")){                 
+                socket.on('terminal:stdin', (id, data) => {                    
+                    __this.get(id).write(data);
                 });
                 
-                socket.on('terminal:resize', function(termID, cols, rows) {                    
-                    __this.get(termID).resize(cols, rows);
+                socket.on('terminal:resize', (id, cols, rows) => {                    
+                    __this.get(id).resize(cols, rows);
                 });
-                
-                socket.on('terminal:logs', function(id, termID) {
+                                
+                socket.on('terminal:logs', (id, termID) => {
                     socket.emit("terminal:stdout", id, __this.logs[termID]);
                     
                     __this.get(termID).on('data', (data) => {                         
                         socket.emit("terminal:stdout", id, data);
                     });
+                    
+                    __this.get(termID).on("exit", () => {
+                        __this.remove(id);
+                        socket.emit("terminal:close", id);
+                    });
+                });
+                
+                socket.on('terminal:close', (id) => {                    
+                    __this.remove(id);
                 });
             }   
         });

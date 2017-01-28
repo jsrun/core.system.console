@@ -127,7 +127,7 @@ webide.module("terminal", function(tabs, commands){
                 }, 300, id);
             }, function(id){
                 if(_this.has(id))
-                    webide.io.emit("terminal:close", _this.get(id).id);
+                    webide.io.emit("terminal:close", id);
                 
                 return true;
             });

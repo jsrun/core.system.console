@@ -11,6 +11,10 @@
  */
 
 .wi-terminal{
-    height: calc(100% - 20px);
+    height: 100%;
+}
+
+.wi-terminal .xterm{
+    height: 100%;
 }
 

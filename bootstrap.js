@@ -132,7 +132,7 @@ module.exports = {
         let __this = this;
         
         _this.commands.addCommand({name: "webide:newterminal", bind: {mac: "Command-T", win: "Alt-T"}});
-        _this.navbar.addItem("Window/New Terminal", {command: "webide:newterminal"}, 100);
+        _this.navbar.addItem("Window/New Terminal", {command: "webide:newterminal"}, 800);
         
         _this.app.post("/terminal/create", (req, res) => {
             let _id = (req.user) ? req.user._id : 0;

@@ -141,15 +141,26 @@ webide.module("terminal", function(tabs, commands){
          * @param function onexit
          * @return void
          */
-        exec: function(cwd, cmd, onexit){
+        exec: function(cwd, cmd, onexit, autoexec, clear){
             var _this = this;
+            
+            if(autoexec !== true && autoexec !== false)
+                autoexec = true;
             
             this.create(function(terminal, id, termID){                
                 setTimeout(function(){
-                    let cmdStr = "cd ." + cwd;
+                    webide.io.emit('terminal:stdin', termID, "cd ." + cwd + "\n");
+                    
+                    let cmdStr = "";
                     
                     if(cmd)
-                        cmdStr += "  && \n " + cmd + "\n";
+                        cmdStr += cmd;
+                    
+                    if(clear)
+                        webide.io.emit('terminal:stdin', termID, "clear \n");
+                                        
+                    if(autoexec === true)
+                        cmdStr += " \n";
                     
                     webide.io.emit('terminal:stdin', termID, cmdStr);
                 }, 300);

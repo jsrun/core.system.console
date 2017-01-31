@@ -35,11 +35,3 @@ jspm_packages
 
 # Optional REPL history
 .node_repl_history
-
-# Diretories
-/*
-!/*.js
-!/*.json
-!/*.css
-!/*.ejs
-!/*.md

@@ -1,6 +1,6 @@
 {
     "name": "wi.core.terminal",
-    "version": "0.3.3",
+    "version": "0.3.4",
     "description": "WebIDE terminal management module",
     "author": "André Ferreira <andrehrf@gmail.com>",
     "license": "MIT",
@@ -8,10 +8,9 @@
         "type": "git",
         "url": "https://github.com/jsrun/wi.core.terminal"
     },
-    "bugs": {
-        "url": "https://github.com/jsrun/wi.core.terminal/issues"
-    },
+    "bugs": {"url": "https://github.com/jsrun/wi.core.terminal/issues"},
     "homepage": "https://github.com/jsrun/wi.core.terminal",
+    "scripts": {"test": "mocha"},
     "dependencies": {
         "xterm": "^2.2.3",
         "node-pty": "^0.6.2"

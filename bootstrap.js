@@ -50,14 +50,7 @@ module.exports = {
      */
     create: function(cwd, cols, rows){
         let _this = this;
-                       
-        let term = pty.spawn(process.platform === 'win32' ? 'cmd.exe' : 'bash', [], {
-            name: 'xterm-color',
-            cols: cols,
-            rows: rows,
-            cwd: cwd
-        });
-        
+        let term = pty.spawn(process.platform === 'win32' ? 'cmd.exe' : 'bash', [], {name: 'xterm-color', cols: cols, rows: rows, cwd: cwd});
         this.logs[term.pid] = "";
         term.on('data', (data) => { _this.logs[term.pid] += data.toString(); });
         this.terminals[term.pid] = term;
@@ -96,7 +89,10 @@ module.exports = {
     write: function(id, cmd, onend){
         if(this.terminals[id]){
             this.terminals[id].write(cmd + "\n");
-            this.terminals[id].on("exit", onend);
+            
+            if(typeof onend == "function")
+                this.terminals[id].on("exit", onend);
+            
             return true;
         }
         else{
@@ -128,46 +124,44 @@ module.exports = {
      * @param object app
      * @return this
      */
-    bootstrap: function(_this){
-        let __this = this;
+    bootstrap: function(commands, terminal, navbar, app, _){        
+        commands.addCommand({name: "webide:newterminal", bind: {mac: "Command-T", win: "Alt-T"}});
+        navbar.addItem("Window/New Terminal", {command: "webide:newterminal"}, 800);
         
-        _this.commands.addCommand({name: "webide:newterminal", bind: {mac: "Command-T", win: "Alt-T"}});
-        _this.navbar.addItem("Window/New Terminal", {command: "webide:newterminal"}, 800);
-        
-        _this.app.post("/terminal/create", (req, res) => {
+        app.post("/terminal/create", (req, res) => {
             let _id = (req.user) ? req.user._id : 0;
             let workspaceDirname = fs.realpathSync(__dirname + "/../../.workspaces/" + _id);
-            res.send(__this.create(workspaceDirname, parseInt(req.body.cols), parseInt(req.body.rows)).pid.toString());            
+            res.send(terminal.create(workspaceDirname, parseInt(req.body.cols), parseInt(req.body.rows)).pid.toString());            
         });
         
-        _this._.setSocketsEvents(function(socket){
+        _.setSocketsEvents((socket) => {
             /**
              * @see https://github.com/sourcelair/xterm.js/blob/master/demo/app.js
              */
             if(!socket.hasEvent("terminal:stdin")){                 
                 socket.on('terminal:stdin', (id, data) => {       
-                    __this.get(id).write(data);
+                    terminal.get(id).write(data);
                 });
                 
                 socket.on('terminal:resize', (id, cols, rows) => {                    
-                    __this.get(id).resize(cols, rows);
+                    terminal.get(id).resize(cols, rows);
                 });
                                 
                 socket.on('terminal:logs', (id, termID) => {
                     socket.emit("terminal:stdout", id, __this.logs[termID]);
                     
-                    __this.get(termID).on('data', (data) => {                         
+                    terminal.get(termID).on('data', (data) => {                         
                         socket.emit("terminal:stdout", id, data);
                     });
                     
-                    __this.get(termID).on("exit", () => {
-                        __this.remove(id);
+                    terminal.get(termID).on("exit", () => {
+                        terminal.remove(id);
                         socket.emit("terminal:close", id);
                     });
                 });
                 
                 socket.on('terminal:close', (id) => {                    
-                    __this.remove(id);
+                    terminal.remove(id);
                 });
             }   
         });

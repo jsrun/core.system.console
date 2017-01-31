@@ -23,6 +23,24 @@ webide.module("terminal", function(tabs, commands){
     });
         
     commands.add("webide:newterminal", function(){ webide.terminal.create(); });//Map command to create terminal
+    
+    webide.io.on('connect', function() {
+        webide.terminal.all(function(terminal){
+            terminal.write('Connected.');
+        });
+    });
+
+    webide.io.on('terminal:stdout', function(id, data) {
+        if(webide.terminal.has(id))
+            webide.terminal.terminals[id].write(data);
+    });
+
+    webide.io.on('terminal:close', function(id) {
+        if(webide.terminal.has(id))
+            webide.terminal.remove(id);
+        
+        tabs.remove(id);
+    });
         
     this.extends("terminal", {
         /**
@@ -97,29 +115,10 @@ webide.module("terminal", function(tabs, commands){
                     webide.send("/terminal/create", {cols: _this.terminals[id].cols, rows: _this.terminals[id].rows}, function(termID){
                         _this.terminals[id].id = termID;
 
-                        _this.terminals[id].on('data', function(data) {
-                            webide.io.emit('terminal:stdin', termID, data);
-                        });
-
-                        _this.terminals[id].on('resize', function(data) {
-                            webide.io.emit('resize', termID, _this.terminals[id].cols, _this.terminals[id].rows);
-                        });
-
-                        webide.io.on('connect', function() {
-                            _this.terminals[id].writeln('Connected.');
-                            _this.terminals[id].writeln('');
-                        });
-
-                        webide.io.on('terminal:stdout', function(id, data) {
-                            _this.terminals[id].write(data);
-                        });
+                        _this.terminals[id].on('data', function(data) { webide.io.emit('terminal:stdin', termID, data); });
+                        _this.terminals[id].on('resize', function(data) { webide.io.emit('resize', termID, _this.terminals[id].cols, _this.terminals[id].rows); });
                         
-                        webide.io.on('terminal:close', function(id) {
-                            webide.terminal.remove(id);
-                            tabs.remove(id);
-                        });
-                        
-                        setTimeout(function(id, termID){ webide.io.emit('terminal:logs', id, termID); }, 300, id, termID);
+                        setTimeout(function(id, termID){ webide.io.emit('terminal:logs', id, termID); }, 100, id, termID);
                         
                         if(typeof cb == "function")
                             cb(_this.terminals[id], id, termID);

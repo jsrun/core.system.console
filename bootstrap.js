@@ -145,7 +145,7 @@ module.exports = {
              * @see https://github.com/sourcelair/xterm.js/blob/master/demo/app.js
              */
             if(!socket.hasEvent("terminal:stdin")){                 
-                socket.on('terminal:stdin', (id, data) => {                    
+                socket.on('terminal:stdin', (id, data) => {       
                     __this.get(id).write(data);
                 });
                 

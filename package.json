@@ -1,6 +1,6 @@
 {
     "name": "wi.core.terminal",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "description": "WebIDE terminal management module",
     "author": "André Ferreira <andrehrf@gmail.com>",
     "license": "MIT",

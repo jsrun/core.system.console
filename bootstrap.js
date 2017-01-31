@@ -53,8 +53,7 @@ module.exports = {
         let term = pty.spawn(process.platform === 'win32' ? 'cmd.exe' : 'bash', [], {name: 'xterm-color', cols: cols, rows: rows, cwd: cwd});
         this.logs[term.pid] = "";
         term.on('data', (data) => { _this.logs[term.pid] += data.toString(); });
-        this.terminals[term.pid] = term;
-        
+        this.terminals[term.pid] = term;        
         return term;
     },
     
@@ -139,7 +138,7 @@ module.exports = {
              * @see https://github.com/sourcelair/xterm.js/blob/master/demo/app.js
              */
             if(!socket.hasEvent("terminal:stdin")){                 
-                socket.on('terminal:stdin', (id, data) => {       
+                socket.on('terminal:stdin', (id, data) => {  
                     terminal.get(id).write(data);
                 });
                 
@@ -148,7 +147,7 @@ module.exports = {
                 });
                                 
                 socket.on('terminal:logs', (id, termID) => {
-                    socket.emit("terminal:stdout", id, __this.logs[termID]);
+                    socket.emit("terminal:stdout", id, terminal.logs[termID]);
                     
                     terminal.get(termID).on('data', (data) => {                         
                         socket.emit("terminal:stdout", id, data);

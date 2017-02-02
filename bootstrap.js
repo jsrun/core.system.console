@@ -16,9 +16,7 @@ let fs = require("fs"),
     path = require("path"),
     glob = require("glob"),
     os = require('os'),
-    pty = require('node-pty'),
-    SystemException = require("../wi.core.exception.js"),
-    TemplateEngine = require("../wi.core.template.js");
+    pty = require('node-pty');
 
 module.exports = {    
     /**

@@ -92,9 +92,8 @@ module.exports = {
             
             return true;
         }
-        else{
+        else
             return false;
-        }  
     },
     
     /**
@@ -110,9 +109,8 @@ module.exports = {
             delete this.logs[id];
             return true;
         }
-        else{
+        else
             return false;
-        }
     },
     
      /**
@@ -135,23 +133,13 @@ module.exports = {
             /**
              * @see https://github.com/sourcelair/xterm.js/blob/master/demo/app.js
              */
-            console.log(socket.hasEvent("terminal:stdin"));
             if(!socket.hasEvent("terminal:stdin")){                 
-                socket.on('terminal:stdin', (id, data) => {  
-                    terminal.get(id).write(data);
-                });
-                
-                socket.on('terminal:resize', (id, cols, rows) => {                    
-                    terminal.get(id).resize(cols, rows);
-                });
+                socket.on('terminal:stdin', (id, data) => { terminal.get(id).write(data); });
+                socket.on('terminal:resize', (id, cols, rows) => { terminal.get(id).resize(cols, rows); });
                                 
                 socket.on('terminal:logs', (id, termID) => {
-                    console.log(termID,terminal.logs[termID])
                     socket.emit("terminal:stdout", id, terminal.logs[termID]);
-                    
-                    terminal.get(termID).on('data', (data) => {                         
-                        socket.emit("terminal:stdout", id, data);
-                    });
+                    terminal.get(termID).on('data', (data) => { socket.emit("terminal:stdout", id, data); });
                     
                     terminal.get(termID).on("exit", () => {
                         terminal.remove(id);
@@ -159,9 +147,7 @@ module.exports = {
                     });
                 });
                 
-                socket.on('terminal:close', (id) => {                    
-                    terminal.remove(id);
-                });
+                socket.on('terminal:close', (id) => { terminal.remove(id); });
             }   
         });
     }

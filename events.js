@@ -25,7 +25,6 @@ webide.module("terminal", function(tabs, commands){
             if(typeof tabs.itens[state.id].terminal == "object"){
                 tabs.itens[state.id].terminal.fit();
                 tabs.itens[state.id].terminal.resize(tabs.itens[state.id].terminal.cols, tabs.itens[state.id].terminal.rows);
-                tabs.itens[state.id].terminal.write("\n");
             }
         });
     });

@@ -20,6 +20,14 @@ webide.module("terminal", function(tabs, commands){
         
         if(typeof tabs.itens[state.id].cb == "function")
             tabs.itens[state.id].cb(state.id);
+        
+        container.on("resize", function(){
+            if(typeof tabs.itens[state.id].terminal == "object"){
+                tabs.itens[state.id].terminal.fit();
+                tabs.itens[state.id].terminal.resize(tabs.itens[state.id].terminal.cols, tabs.itens[state.id].terminal.rows);
+                tabs.itens[state.id].terminal.write("\n");
+            }
+        });
     });
         
     commands.add("webide:newterminal", function(){ webide.terminal.create(); });//Map command to create terminal
@@ -107,17 +115,18 @@ webide.module("terminal", function(tabs, commands){
             var _id = new Date().getTime();
                         
             tabs.add("Terminal", _id.toString(), "terminal", {height: 150}, function(id){
-                setTimeout(function(id){
+                setTimeout(function(id){                    
                     _this.terminals[id] = new Terminal({cursorBlink: true});                    
                     _this.terminals[id].open(document.querySelector("#wi-terminal-" + id));
                     _this.terminals[id].fit();
+                    
+                    tabs.itens[id].terminal = _this.terminals[id];
                     
                     webide.send("/terminal/create", {cols: _this.terminals[id].cols, rows: _this.terminals[id].rows}, function(termID){
                         _this.terminals[id].id = termID;
 
                         _this.terminals[id].on('data', function(data) { webide.io.emit('terminal:stdin', termID, data); });
-                        _this.terminals[id].on('resize', function(data) { webide.io.emit('resize', termID, _this.terminals[id].cols, _this.terminals[id].rows); });
-                        
+                        _this.terminals[id].on('resize', function(data) { webide.io.emit('resize', termID, _this.terminals[id].cols, _this.terminals[id].rows);  });                        
                         setTimeout(function(id, termID){ webide.io.emit('terminal:logs', id, termID); }, 100, id, termID);
                         
                         if(typeof cb == "function")

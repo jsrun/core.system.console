@@ -135,6 +135,7 @@ module.exports = {
             /**
              * @see https://github.com/sourcelair/xterm.js/blob/master/demo/app.js
              */
+            console.log(socket.hasEvent("terminal:stdin"));
             if(!socket.hasEvent("terminal:stdin")){                 
                 socket.on('terminal:stdin', (id, data) => {  
                     terminal.get(id).write(data);
@@ -145,6 +146,7 @@ module.exports = {
                 });
                                 
                 socket.on('terminal:logs', (id, termID) => {
+                    console.log(termID,terminal.logs[termID])
                     socket.emit("terminal:stdout", id, terminal.logs[termID]);
                     
                     terminal.get(termID).on('data', (data) => {                         

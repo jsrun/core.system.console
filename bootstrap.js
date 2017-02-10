@@ -119,13 +119,13 @@ module.exports = {
      * @param object app
      * @return this
      */
-    bootstrap: function(commands, terminal, navbar, app, _){        
+    bootstrap: function(commands, terminal, navbar, app, _, env){        
         commands.addCommand({name: "webide:newterminal", bind: {mac: "Command-T", win: "Alt-T"}});
         navbar.addItem("Window/New Terminal", {command: "webide:newterminal"}, 800);
         
         app.post("/terminal/create", (req, res) => {
             let _id = (req.user) ? req.user._id : 0;
-            let workspaceDirname = fs.realpathSync(__dirname + "/../../.workspaces/" + _id);
+            let workspaceDirname = (env == "dev") ? fs.realpathSync(__dirname + "/../../") : fs.realpathSync(__dirname + "/../../.workspaces/" + _id);
             res.send(terminal.create(workspaceDirname, parseInt(req.body.cols), parseInt(req.body.rows)).pid.toString());            
         });
         

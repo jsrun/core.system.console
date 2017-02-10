@@ -10,7 +10,7 @@
 
 [![GitHub license](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/jsrun/wi.core.terminal/master/LICENSE)
 
-Terminal management module (using: xterm.js + node-pty)
+Terminal management module (xterm.js + node-pty)
 
 ## License
 

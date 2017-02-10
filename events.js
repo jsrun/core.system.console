@@ -163,12 +163,12 @@ webide.module("terminal", function(tabs, commands){
                     if(cmd)
                         cmdStr += cmd;
                     
-                    if(clear)
-                        webide.io.emit('terminal:stdin', termID, "clear \n");
-                                        
                     if(autoexec === true)
                         cmdStr += " \n";
                     
+                    if(clear)
+                        webide.io.emit('terminal:stdin', termID, "clear \n");
+                          
                     webide.io.emit('terminal:stdin', termID, cmdStr);
                 }, 300);
             });
